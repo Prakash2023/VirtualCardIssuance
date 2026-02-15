@@ -2,7 +2,11 @@ package com.example.virtualCard.services;
 
 import com.example.virtualCard.entity.Card;
 import com.example.virtualCard.entity.Transaction;
+import com.example.virtualCard.enums.CardStatus;
 import com.example.virtualCard.enums.TransactionStatus;
+import com.example.virtualCard.exception.CardNotActiveException;
+import com.example.virtualCard.exception.CardNotFoundException;
+import com.example.virtualCard.exception.InsufficientBalanceException;
 import com.example.virtualCard.repository.CardRepository;
 import com.example.virtualCard.repository.TransactionRepository;
 import org.springframework.stereotype.Service;
@@ -28,10 +32,12 @@ public class CardService {
     }
     public Card getCard(UUID id)
     {
-        return cardRepository.findById(id).orElse(null);
+        return cardRepository.findById(id).orElseThrow(() -> new CardNotFoundException());
     }
     public Card topup(UUID cardId, BigDecimal amount) {
-        Card card = cardRepository.findById(cardId).orElse(null);
+        Card card = cardRepository.findById(cardId).orElseThrow(() -> new CardNotFoundException());
+        if (card.getStatus() != CardStatus.ACTIVE)
+            throw new CardNotActiveException();
 
         card.setBalance(card.getBalance().add(amount));
         cardRepository.save(card);
@@ -42,11 +48,14 @@ public class CardService {
     }
 
     public Card spend(UUID cardId, BigDecimal amount) {
-        Card card = cardRepository.findById(cardId).orElse(null);
+        Card card = cardRepository.findById(cardId).orElseThrow(() -> new CardNotFoundException());
+
+        if (card.getStatus() != CardStatus.ACTIVE)
+            throw new CardNotActiveException();
 
         if (card.getBalance().compareTo(amount) < 0) {
             transactionRepository.save(new Transaction(cardId, "SPEND", amount, TransactionStatus.DECLINED));
-            return card;
+            throw new InsufficientBalanceException();
         }
 
         card.setBalance(card.getBalance().subtract(amount));
