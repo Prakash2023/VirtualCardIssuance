@@ -4,6 +4,7 @@ import com.example.virtualCard.dto.AmountRequest;
 import com.example.virtualCard.dto.CreateCardRequest;
 import com.example.virtualCard.entity.Card;
 import com.example.virtualCard.entity.Transaction;
+import jakarta.validation.Valid;
 import com.example.virtualCard.services.CardService;
 import org.springframework.web.bind.annotation.*;
 
@@ -18,9 +19,9 @@ public class CardController {
         this.cardService = cardService;
     }
     @PostMapping("/create")
-    public Card create(@RequestBody CreateCardRequest req)
+    public Card create(@Valid @RequestBody CreateCardRequest req)
     {
-        return cardService.createCard(req.getCardholderName(),req.getInitialBalance());
+        return cardService.createCard(req.getCardholderName(), req.getInitialBalance(), req.getIdempotencyKey());
     }
     @GetMapping("/{id}")
     public Card get(@PathVariable UUID id)
@@ -28,12 +29,12 @@ public class CardController {
         return cardService.getCard(id);
     }
     @PostMapping("/{id}/topup")
-    public Card topup(@PathVariable UUID id, @RequestBody AmountRequest req) {
-        return cardService.topup(id, req.getAmount());
+    public Card topup(@PathVariable UUID id, @Valid @RequestBody AmountRequest req) {
+        return cardService.topup(id, req.getAmount(), req.getIdempotencyKey());
     }
     @PostMapping("/{id}/spend")
-    public Card spend(@PathVariable UUID id, @RequestBody AmountRequest req) {
-        return cardService.spend(id, req.getAmount());
+    public Card spend(@PathVariable UUID id, @Valid @RequestBody AmountRequest req) {
+        return cardService.spend(id, req.getAmount(), req.getIdempotencyKey());
     }
 
     @GetMapping("/{id}/transactions")

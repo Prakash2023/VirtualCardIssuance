@@ -31,6 +31,28 @@ public class Card {
         this.cardStatus = CardStatus.ACTIVE;
         this.createdAt = LocalDateTime.now();
     }
+    public void debit(BigDecimal amount) {
+
+        if (cardStatus != CardStatus.ACTIVE)
+            throw new IllegalStateException("Card inactive");
+
+        if (balance.compareTo(amount) < 0)
+            throw new IllegalStateException("Insufficient balance");
+
+        balance = balance.subtract(amount);
+    }
+
+    public void credit(BigDecimal amount) {
+
+        if (cardStatus != CardStatus.ACTIVE)
+            throw new IllegalStateException("Card inactive");
+
+        balance = balance.add(amount);
+    }
+    public UUID getId() {
+        return id;
+    }
+
     public String getCardholderName() {
         return cardholderName;
     }
@@ -53,6 +75,10 @@ public class Card {
 
     public void setStatus(CardStatus status) {
         this.cardStatus = status;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
     }
 
 }

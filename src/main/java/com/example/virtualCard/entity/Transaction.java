@@ -18,23 +18,31 @@ public class Transaction {
     private UUID cardId;
     private BigDecimal amount;
     private String type;  // spend or topup
+
+    @Column(unique = true, length = 100)
+    private String idempotencyKey;
+
     @Enumerated(EnumType.STRING)
     private TransactionStatus status;
 
     private LocalDateTime createdAt;
     public Transaction(){}
-    public Transaction(UUID cardId, String type, BigDecimal amount, TransactionStatus status) {
+    public Transaction(UUID cardId, String type, BigDecimal amount, TransactionStatus status, String idempotencyKey) {
         this.cardId = cardId;
         this.type = type;
         this.amount = amount;
         this.status = status;
+        this.idempotencyKey = idempotencyKey;
         this.createdAt = LocalDateTime.now();
     }
 
     public UUID getId() { return id; }
     public UUID getCardId() { return cardId; }
+    public void setCardId(UUID cardId) { this.cardId = cardId; }
     public String getType() { return type; }
     public BigDecimal getAmount() { return amount; }
+    public String getIdempotencyKey() { return idempotencyKey; }
     public TransactionStatus getStatus() { return status; }
+    public void setStatus(TransactionStatus status) { this.status = status; }
     public LocalDateTime getCreatedAt() { return createdAt; }
 }
