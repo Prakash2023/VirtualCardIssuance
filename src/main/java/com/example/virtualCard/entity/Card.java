@@ -19,6 +19,9 @@ public class Card {
     @Column(nullable = false)
     private BigDecimal balance;
 
+    @Version
+    private Long version;
+
     @Enumerated(EnumType.STRING)
     private CardStatus cardStatus;
 

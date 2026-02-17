@@ -15,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -135,14 +136,16 @@ public class CardService {
             Transaction existing = transactionRepository.findByIdempotencyKey(idempotencyKey)
                     .orElseThrow(() -> ex);
             validateIdempotentReplay(existing, cardId, type, amount);
-            throw new IdempotencyInProgressException();
+            //throw new IdempotencyInProgressException();
+            return waitForCompletion(idempotencyKey);
         }
     }
 
     private Card replayCreate(Transaction existing, String expectedName, BigDecimal expectedAmount) {
         validateIdempotentReplay(existing, null, TYPE_ISSUANCE, expectedAmount);
         if (existing.getStatus() == TransactionStatus.PENDING || existing.getCardId() == null) {
-            throw new IdempotencyInProgressException();
+            //throw new IdempotencyInProgressException();
+            existing = waitForCompletion(existing.getIdempotencyKey());
         }
         log.info("Idempotent replay for issuance idempotencyKey={}", existing.getIdempotencyKey());
         Card existingCard = getCard(existing.getCardId());
@@ -155,7 +158,8 @@ public class CardService {
     private Card replayTopup(Transaction existing, UUID cardId, BigDecimal amount) {
         validateIdempotentReplay(existing, cardId, TYPE_TOPUP, amount);
         if (existing.getStatus() == TransactionStatus.PENDING) {
-            throw new IdempotencyInProgressException();
+            //throw new IdempotencyInProgressException();
+            existing = waitForCompletion(existing.getIdempotencyKey());
         }
         log.info("Idempotent replay for topup cardId={} idempotencyKey={}", cardId, existing.getIdempotencyKey());
         return getCard(cardId);
@@ -164,7 +168,8 @@ public class CardService {
     private Card replaySpend(Transaction existing, UUID cardId, BigDecimal amount) {
         validateIdempotentReplay(existing, cardId, TYPE_SPEND, amount);
         if (existing.getStatus() == TransactionStatus.PENDING) {
-            throw new IdempotencyInProgressException();
+            //throw new IdempotencyInProgressException();
+            existing = waitForCompletion(existing.getIdempotencyKey());
         }
         log.info("Idempotent replay for spend cardId={} idempotencyKey={}", cardId, existing.getIdempotencyKey());
         if (existing.getStatus() == TransactionStatus.DECLINED) {
@@ -192,5 +197,34 @@ public class CardService {
             throw new IllegalArgumentException(fieldName + " cannot be negative");
         }
     }
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
+    private Transaction waitForCompletion(String key) {
+
+        int maxAttempts = 50;          // 50 * 100ms = 5 seconds max wait
+        int attempt = 0;
+
+        while (attempt < maxAttempts) {
+
+            Transaction tx = transactionRepository
+                    .findByIdempotencyKey(key)
+                    .orElseThrow();
+
+            if (tx.getStatus() != TransactionStatus.PENDING) {
+                return tx;
+            }
+
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException("Interrupted while waiting for idempotent result");
+            }
+
+            attempt++;
+        }
+
+        throw new RuntimeException("Timeout waiting for idempotent request completion");
+    }
+
 
 }

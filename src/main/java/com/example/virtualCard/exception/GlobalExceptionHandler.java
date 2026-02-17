@@ -1,7 +1,9 @@
 package com.example.virtualCard.exception;
 
+import jakarta.persistence.OptimisticLockException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -25,6 +27,14 @@ public class GlobalExceptionHandler  {
         return new ResponseEntity<>(
                 new ApiErrorResponse(400, ex.getMessage()),
                 HttpStatus.BAD_REQUEST
+        );
+    }
+
+    @ExceptionHandler({ObjectOptimisticLockingFailureException.class, OptimisticLockException.class})
+    public ResponseEntity<ApiErrorResponse> handleOptimisticLock(Exception ex) {
+        return new ResponseEntity<>(
+                new ApiErrorResponse(409, "Concurrent update detected. Please retry."),
+                HttpStatus.CONFLICT
         );
     }
 
