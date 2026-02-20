@@ -84,4 +84,7 @@ public class Card {
         return createdAt;
     }
 
+    public void setId(UUID cardId) {
+        this.id=cardId;
+    }
 }
