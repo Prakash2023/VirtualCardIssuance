@@ -70,7 +70,7 @@ class CardServiceIntegrationTest {
         executor.shutdownNow();
 
         Card current = cardService.getCard(cardId);
-        List<Transaction> txs = transactionRepository.findByCardId(cardId);
+        List<Transaction> txs = transactionRepository.findByCard_Id(cardId);
         long successTx = txs.stream()
                 .filter(tx -> "SPEND".equals(tx.getType()) && tx.getStatus() == TransactionStatus.SUCCESS)
                 .count();

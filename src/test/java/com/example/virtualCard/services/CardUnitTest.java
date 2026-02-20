@@ -105,7 +105,7 @@ class CardUnitTest {
     @Test
     void idempotencyReplaySuccessCase() {
         Transaction existing = new Transaction(
-                cardId,
+                card,
                 "SPEND",
                 BigDecimal.valueOf(20),
                 TransactionStatus.SUCCESS,
@@ -131,7 +131,7 @@ class CardUnitTest {
     @Test
     void idempotencyConflict() {
         Transaction existing = new Transaction(
-                cardId,
+                card,
                 "SPEND",
                 BigDecimal.valueOf(20),
                 TransactionStatus.SUCCESS,
@@ -168,7 +168,7 @@ class CardUnitTest {
     @Test
     void createReplay() {
         Transaction existing = new Transaction(
-                cardId,
+                card,
                 "ISSUANCE",
                 BigDecimal.valueOf(200),
                 TransactionStatus.SUCCESS,

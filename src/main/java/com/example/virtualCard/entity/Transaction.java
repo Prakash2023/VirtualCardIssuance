@@ -1,5 +1,6 @@
 package com.example.virtualCard.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.example.virtualCard.enums.TransactionStatus;
 import jakarta.persistence.*;
 
@@ -15,7 +16,10 @@ public class Transaction {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    private UUID cardId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "card_id", nullable = false)
+    private Card card;
+
     private BigDecimal amount;
     private String type;  // spend or topup
 
@@ -27,8 +31,8 @@ public class Transaction {
 
     private LocalDateTime createdAt;
     public Transaction(){}
-    public Transaction(UUID cardId, String type, BigDecimal amount, TransactionStatus status, String idempotencyKey) {
-        this.cardId = cardId;
+    public Transaction(Card card, String type, BigDecimal amount, TransactionStatus status, String idempotencyKey) {
+        this.card = card;
         this.type = type;
         this.amount = amount;
         this.status = status;
@@ -37,8 +41,8 @@ public class Transaction {
     }
 
     public UUID getId() { return id; }
-    public UUID getCardId() { return cardId; }
-    public void setCardId(UUID cardId) { this.cardId = cardId; }
+    public Card getCard() { return card; }
+    public void setCard(Card card) { this.card = card; }
     public String getType() { return type; }
     public BigDecimal getAmount() { return amount; }
     public String getIdempotencyKey() { return idempotencyKey; }

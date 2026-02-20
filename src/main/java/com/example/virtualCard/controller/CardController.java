@@ -2,8 +2,8 @@ package com.example.virtualCard.controller;
 
 import com.example.virtualCard.dto.AmountRequest;
 import com.example.virtualCard.dto.CreateCardRequest;
+import com.example.virtualCard.dto.TransactionResponse;
 import com.example.virtualCard.entity.Card;
-import com.example.virtualCard.entity.Transaction;
 import jakarta.validation.Valid;
 import com.example.virtualCard.services.CardService;
 import org.springframework.web.bind.annotation.*;
@@ -38,7 +38,7 @@ public class CardController {
     }
 
     @GetMapping("/{id}/transactions")
-    public List<Transaction> transactions(@PathVariable UUID id) {
+    public List<TransactionResponse> transactions(@PathVariable UUID id) {
         return cardService.getTransactions(id);
     }
 }

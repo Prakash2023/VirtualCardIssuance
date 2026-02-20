@@ -1,5 +1,6 @@
 package com.example.virtualCard.services;
 
+import com.example.virtualCard.dto.TransactionResponse;
 import com.example.virtualCard.entity.Card;
 import com.example.virtualCard.entity.Transaction;
 import com.example.virtualCard.enums.CardStatus;
@@ -7,7 +8,6 @@ import com.example.virtualCard.enums.TransactionStatus;
 import com.example.virtualCard.exception.CardNotActiveException;
 import com.example.virtualCard.exception.CardNotFoundException;
 import com.example.virtualCard.exception.IdempotencyConflictException;
-import com.example.virtualCard.exception.IdempotencyInProgressException;
 import com.example.virtualCard.exception.InsufficientBalanceException;
 import com.example.virtualCard.repository.CardRepository;
 import com.example.virtualCard.repository.TransactionRepository;
@@ -50,10 +50,14 @@ public class CardService {
             return replayCreate(existing, name, amount);
         }
 
-        Transaction issuance = reserveIdempotencyKey(null, TYPE_ISSUANCE, amount, idempotencyKey);
-
         Card card = cardRepository.save(new Card(name, amount));
-        issuance.setCardId(card.getId());
+        Transaction issuance = reserveIdempotencyKey(card, TYPE_ISSUANCE, amount, idempotencyKey);
+
+        if (!Objects.equals(issuance.getCard().getId(), card.getId())) {
+            cardRepository.delete(card);
+            return replayCreate(issuance, name, amount);
+        }
+
         issuance.setStatus(TransactionStatus.SUCCESS);
         transactionRepository.save(issuance);
 
@@ -76,7 +80,7 @@ public class CardService {
         Card card = cardRepository.findByIdForTopup(cardId).orElseThrow(CardNotFoundException::new);
         ensureCardActive(card);
 
-        Transaction topupTransaction = reserveIdempotencyKey(cardId, TYPE_TOPUP, amount, idempotencyKey);
+        Transaction topupTransaction = reserveIdempotencyKey(card, TYPE_TOPUP, amount, idempotencyKey);
         card.setBalance(card.getBalance().add(amount));
         cardRepository.save(card);
 
@@ -98,7 +102,7 @@ public class CardService {
         Card card = cardRepository.findByIdForSpend(cardId).orElseThrow(CardNotFoundException::new);
         ensureCardActive(card);
 
-        Transaction spendTransaction = reserveIdempotencyKey(cardId, TYPE_SPEND, amount, idempotencyKey);
+        Transaction spendTransaction = reserveIdempotencyKey(card, TYPE_SPEND, amount, idempotencyKey);
 
         if (card.getBalance().compareTo(amount) < 0) {
             spendTransaction.setStatus(TransactionStatus.DECLINED);
@@ -118,9 +122,13 @@ public class CardService {
         return card;
     }
 
-    public List<Transaction> getTransactions(UUID cardId) {
+    @Transactional(readOnly = true)
+    public List<TransactionResponse> getTransactions(UUID cardId) {
         cardRepository.findById(cardId).orElseThrow(CardNotFoundException::new);
-        return transactionRepository.findByCardId(cardId);
+        return transactionRepository.findByCard_Id(cardId)
+                .stream()
+                .map(TransactionResponse::from)
+                .toList();
     }
 
     private void ensureCardActive(Card card) {
@@ -128,14 +136,15 @@ public class CardService {
             throw new CardNotActiveException();
     }
 
-    private Transaction reserveIdempotencyKey(UUID cardId, String type, BigDecimal amount, String idempotencyKey) {
+    private Transaction reserveIdempotencyKey(Card card, String type, BigDecimal amount, String idempotencyKey) {
         try {
-            Transaction pending = new Transaction(cardId, type, amount, TransactionStatus.PENDING, idempotencyKey);
+            Transaction pending = new Transaction(card, type, amount, TransactionStatus.PENDING, idempotencyKey);
             return transactionRepository.saveAndFlush(pending);
         } catch (DataIntegrityViolationException ex) {
             Transaction existing = transactionRepository.findByIdempotencyKey(idempotencyKey)
                     .orElseThrow(() -> ex);
-            validateIdempotentReplay(existing, cardId, type, amount);
+            UUID expectedCardId = TYPE_ISSUANCE.equals(type) ? null : card.getId();
+            validateIdempotentReplay(existing, expectedCardId, type, amount);
             //throw new IdempotencyInProgressException();
             return waitForCompletion(idempotencyKey);
         }
@@ -143,12 +152,12 @@ public class CardService {
 
     private Card replayCreate(Transaction existing, String expectedName, BigDecimal expectedAmount) {
         validateIdempotentReplay(existing, null, TYPE_ISSUANCE, expectedAmount);
-        if (existing.getStatus() == TransactionStatus.PENDING || existing.getCardId() == null) {
+        if (existing.getStatus() == TransactionStatus.PENDING) {
             //throw new IdempotencyInProgressException();
             existing = waitForCompletion(existing.getIdempotencyKey());
         }
         log.info("Idempotent replay for issuance idempotencyKey={}", existing.getIdempotencyKey());
-        Card existingCard = getCard(existing.getCardId());
+        Card existingCard = getCard(existing.getCard().getId());
         if (!Objects.equals(existingCard.getCardholderName(), expectedName)) {
             throw new IdempotencyConflictException("Idempotency key reused with different request payload");
         }
@@ -180,7 +189,7 @@ public class CardService {
 
     private void validateIdempotentReplay(Transaction existing, UUID expectedCardId, String expectedType, BigDecimal expectedAmount) {
         if (!expectedType.equals(existing.getType())
-                || (expectedCardId != null && !Objects.equals(expectedCardId, existing.getCardId()))
+                || (expectedCardId != null && !Objects.equals(expectedCardId, existing.getCard().getId()))
                 || (expectedAmount != null && existing.getAmount().compareTo(expectedAmount) != 0)) {
             throw new IdempotencyConflictException("Idempotency key reused with different request payload");
         }
