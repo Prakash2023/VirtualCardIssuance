@@ -13,7 +13,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -35,8 +34,8 @@ class CardUnitTest {
     @Mock
     private TransactionRepository transactionRepository;
 
-    @InjectMocks
     private CardService cardService;
+    private IdempotencyService idempotencyService;
 
     private UUID cardId;
     private Card card;
@@ -47,6 +46,8 @@ class CardUnitTest {
         card = new Card("Test", BigDecimal.valueOf(1000));
         card.setId(cardId);
         card.setStatus(CardStatus.ACTIVE);
+        idempotencyService = new IdempotencyService(cardRepository, transactionRepository);
+        cardService = new CardService(cardRepository, transactionRepository, idempotencyService);
     }
 
     @Test
