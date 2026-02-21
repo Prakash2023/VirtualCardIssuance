@@ -23,7 +23,7 @@ public class Transaction {
     private BigDecimal amount;
     private String type;  // spend or topup
 
-    @Column(unique = true, length = 100)
+    @Column(unique = true, length = 100,nullable = false)
     private String idempotencyKey;
 
     @Enumerated(EnumType.STRING)

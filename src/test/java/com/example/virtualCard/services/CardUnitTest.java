@@ -104,6 +104,7 @@ class CardUnitTest {
     }
     @Test
     void idempotencyReplaySuccessCase() {
+        card = cardWithBalance(new BigDecimal("80"));
         Transaction existing = new Transaction(
                 card,
                 "SPEND",
@@ -111,8 +112,6 @@ class CardUnitTest {
                 TransactionStatus.SUCCESS,
                 "k4"
         );
-
-        card.setBalance(BigDecimal.valueOf(80));
 
         when(transactionRepository.findByIdempotencyKey("k4"))
                 .thenReturn(Optional.of(existing));
@@ -147,7 +146,7 @@ class CardUnitTest {
 
     @Test
     void topupSuccess() {
-        card.setBalance(BigDecimal.valueOf(100));
+        card = cardWithBalance(new BigDecimal("100"));
 
         when(transactionRepository.findByIdempotencyKey("t1"))
                 .thenReturn(Optional.empty());
@@ -167,6 +166,7 @@ class CardUnitTest {
 
     @Test
     void createReplay() {
+        card = cardWithBalance(new BigDecimal("200"));
         Transaction existing = new Transaction(
                 card,
                 "ISSUANCE",
@@ -175,7 +175,6 @@ class CardUnitTest {
                 "c1"
         );
 
-        card.setBalance(BigDecimal.valueOf(200));
         card.setCardholderName("Alice");
 
         when(transactionRepository.findByIdempotencyKey("c1"))
@@ -189,5 +188,12 @@ class CardUnitTest {
         assertThat(BigDecimal.valueOf(200)).isEqualTo(replay.getBalance());
         verify(transactionRepository, never()).saveAndFlush(any());
         verify(cardRepository, never()).save(any());
+    }
+
+    private Card cardWithBalance(BigDecimal balance) {
+        Card value = new Card("Test", balance);
+        value.setId(cardId);
+        value.setStatus(CardStatus.ACTIVE);
+        return value;
     }
 }

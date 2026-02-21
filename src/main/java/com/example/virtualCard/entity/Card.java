@@ -16,7 +16,7 @@ public class Card {
     private UUID id;
     private String cardholderName;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "NUMERIC CHECK (balance >= 0)")
     private BigDecimal balance;
 
     @Version
@@ -29,12 +29,16 @@ public class Card {
     public Card() {}
 
     public Card(String cardHolderName, BigDecimal balance) {
+        if (balance == null || balance.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("initialBalance cannot be negative");
+        }
         this.cardholderName = cardHolderName;
         this.balance = balance;
         this.cardStatus = CardStatus.ACTIVE;
         this.createdAt = LocalDateTime.now();
     }
     public void debit(BigDecimal amount) {
+        validateMonetaryAmount(amount);
 
         if (cardStatus != CardStatus.ACTIVE)
             throw new IllegalStateException("Card inactive");
@@ -46,6 +50,7 @@ public class Card {
     }
 
     public void credit(BigDecimal amount) {
+        validateMonetaryAmount(amount);
 
         if (cardStatus != CardStatus.ACTIVE)
             throw new IllegalStateException("Card inactive");
@@ -68,10 +73,6 @@ public class Card {
         return balance;
     }
 
-    public void setBalance(BigDecimal balance) {
-        this.balance = balance;
-    }
-
     public CardStatus getStatus() {
         return cardStatus;
     }
@@ -86,5 +87,11 @@ public class Card {
 
     public void setId(UUID cardId) {
         this.id=cardId;
+    }
+
+    private void validateMonetaryAmount(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("amount must be greater than zero");
+        }
     }
 }

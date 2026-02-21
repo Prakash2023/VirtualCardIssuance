@@ -81,7 +81,7 @@ public class CardService {
         ensureCardActive(card);
 
         Transaction topupTransaction = reserveIdempotencyKey(card, TYPE_TOPUP, amount, idempotencyKey);
-        card.setBalance(card.getBalance().add(amount));
+        card.credit(amount);
         cardRepository.save(card);
 
         topupTransaction.setStatus(TransactionStatus.SUCCESS);
@@ -104,15 +104,18 @@ public class CardService {
 
         Transaction spendTransaction = reserveIdempotencyKey(card, TYPE_SPEND, amount, idempotencyKey);
 
-        if (card.getBalance().compareTo(amount) < 0) {
+        try {
+            card.debit(amount);
+        } catch (IllegalStateException ex) {
+            if (!"Insufficient balance".equals(ex.getMessage())) {
+                throw ex;
+            }
             spendTransaction.setStatus(TransactionStatus.DECLINED);
             transactionRepository.save(spendTransaction);
             log.warn("Spend declined cardId={} amount={} idempotencyKey={} reason=INSUFFICIENT_BALANCE",
                     cardId, amount, idempotencyKey);
             throw new InsufficientBalanceException();
         }
-
-        card.setBalance(card.getBalance().subtract(amount));
         cardRepository.save(card);
 
         spendTransaction.setStatus(TransactionStatus.SUCCESS);
