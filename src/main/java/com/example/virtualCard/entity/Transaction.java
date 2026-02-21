@@ -2,6 +2,7 @@ package com.example.virtualCard.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.example.virtualCard.enums.TransactionStatus;
+import com.example.virtualCard.enums.TransactionType;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
@@ -21,7 +22,8 @@ public class Transaction {
     private Card card;
 
     private BigDecimal amount;
-    private String type;  // spend or topup
+    @Enumerated(EnumType.STRING)
+    private TransactionType type;
 
     @Column(unique = true, length = 100,nullable = false)
     private String idempotencyKey;
@@ -31,7 +33,7 @@ public class Transaction {
 
     private LocalDateTime createdAt;
     public Transaction(){}
-    public Transaction(Card card, String type, BigDecimal amount, TransactionStatus status, String idempotencyKey) {
+    public Transaction(Card card, TransactionType type, BigDecimal amount, TransactionStatus status, String idempotencyKey) {
         this.card = card;
         this.type = type;
         this.amount = amount;
@@ -43,7 +45,7 @@ public class Transaction {
     public UUID getId() { return id; }
     public Card getCard() { return card; }
     public void setCard(Card card) { this.card = card; }
-    public String getType() { return type; }
+    public TransactionType getType() { return type; }
     public BigDecimal getAmount() { return amount; }
     public String getIdempotencyKey() { return idempotencyKey; }
     public TransactionStatus getStatus() { return status; }

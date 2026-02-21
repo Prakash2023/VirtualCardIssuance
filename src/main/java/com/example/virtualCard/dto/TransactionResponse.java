@@ -2,6 +2,7 @@ package com.example.virtualCard.dto;
 
 import com.example.virtualCard.entity.Transaction;
 import com.example.virtualCard.enums.TransactionStatus;
+import com.example.virtualCard.enums.TransactionType;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -11,7 +12,7 @@ public class TransactionResponse {
     private final UUID id;
     private final UUID cardId;
     private final BigDecimal amount;
-    private final String type;
+    private final TransactionType type;
     private final String idempotencyKey;
     private final TransactionStatus status;
     private final LocalDateTime createdAt;
@@ -20,7 +21,7 @@ public class TransactionResponse {
             UUID id,
             UUID cardId,
             BigDecimal amount,
-            String type,
+            TransactionType type,
             String idempotencyKey,
             TransactionStatus status,
             LocalDateTime createdAt
@@ -58,7 +59,7 @@ public class TransactionResponse {
         return amount;
     }
 
-    public String getType() {
+    public TransactionType getType() {
         return type;
     }
 

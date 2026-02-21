@@ -6,6 +6,7 @@ import com.example.virtualCard.dto.TransactionResponse;
 import com.example.virtualCard.entity.Card;
 import jakarta.validation.Valid;
 import com.example.virtualCard.services.CardService;
+import com.example.virtualCard.services.TransactionQueryService;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,8 +16,11 @@ import java.util.UUID;
 @RequestMapping("/api/v1/cards")
 public class CardController {
     private final CardService cardService;
-    public CardController(CardService cardService) {
+    private final TransactionQueryService transactionQueryService;
+
+    public CardController(CardService cardService, TransactionQueryService transactionQueryService) {
         this.cardService = cardService;
+        this.transactionQueryService = transactionQueryService;
     }
     @PostMapping("/create")
     public Card create(@Valid @RequestBody CreateCardRequest req)
@@ -39,6 +43,6 @@ public class CardController {
 
     @GetMapping("/{id}/transactions")
     public List<TransactionResponse> transactions(@PathVariable UUID id) {
-        return cardService.getTransactions(id);
+        return transactionQueryService.getTransactions(id);
     }
 }

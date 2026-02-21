@@ -1,10 +1,10 @@
 package com.example.virtualCard.services;
 
-import com.example.virtualCard.dto.TransactionResponse;
 import com.example.virtualCard.entity.Card;
 import com.example.virtualCard.entity.Transaction;
 import com.example.virtualCard.enums.CardStatus;
 import com.example.virtualCard.enums.TransactionStatus;
+import com.example.virtualCard.enums.TransactionType;
 import com.example.virtualCard.exception.CardNotActiveException;
 import com.example.virtualCard.exception.CardNotFoundException;
 import com.example.virtualCard.exception.IdempotencyInProgressException;
@@ -17,17 +17,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
 @Service
 public class CardService {
     private static final Logger log = LoggerFactory.getLogger(CardService.class);
-
-    private static final String TYPE_ISSUANCE = "ISSUANCE";
-    private static final String TYPE_TOPUP = "TOPUP";
-    private static final String TYPE_SPEND = "SPEND";
 
     private final CardRepository cardRepository;
     private final TransactionRepository transactionRepository;
@@ -54,7 +49,7 @@ public class CardService {
         Card card = cardRepository.save(new Card(name, amount));
         Transaction issuance;
         try {
-            issuance = idempotencyService.reserveIdempotencyKey(card, TYPE_ISSUANCE, amount, idempotencyKey);
+            issuance = idempotencyService.reserveIdempotencyKey(card, TransactionType.ISSUANCE, amount, idempotencyKey);
         } catch (IdempotencyInProgressException ex) {
             cardRepository.delete(card);
             throw ex;
@@ -87,7 +82,7 @@ public class CardService {
         Card card = cardRepository.findByIdForTopup(cardId).orElseThrow(CardNotFoundException::new);
         ensureCardActive(card);
 
-        Transaction topupTransaction = idempotencyService.reserveIdempotencyKey(card, TYPE_TOPUP, amount, idempotencyKey);
+        Transaction topupTransaction = idempotencyService.reserveIdempotencyKey(card, TransactionType.TOPUP, amount, idempotencyKey);
         if (topupTransaction.getStatus() != TransactionStatus.PENDING) {
             return idempotencyService.replayTopup(topupTransaction, cardId, amount);
         }
@@ -113,7 +108,7 @@ public class CardService {
         Card card = cardRepository.findByIdForSpend(cardId).orElseThrow(CardNotFoundException::new);
         ensureCardActive(card);
 
-        Transaction spendTransaction = idempotencyService.reserveIdempotencyKey(card, TYPE_SPEND, amount, idempotencyKey);
+        Transaction spendTransaction = idempotencyService.reserveIdempotencyKey(card, TransactionType.SPEND, amount, idempotencyKey);
         if (spendTransaction.getStatus() != TransactionStatus.PENDING) {
             return idempotencyService.replaySpend(spendTransaction, cardId, amount);
         }
@@ -137,15 +132,6 @@ public class CardService {
 
         log.info("Spend success cardId={} amount={} idempotencyKey={}", cardId, amount, idempotencyKey);
         return card;
-    }
-
-    @Transactional(readOnly = true)
-    public List<TransactionResponse> getTransactions(UUID cardId) {
-        cardRepository.findById(cardId).orElseThrow(CardNotFoundException::new);
-        return transactionRepository.findByCard_Id(cardId)
-                .stream()
-                .map(TransactionResponse::from)
-                .toList();
     }
 
     private void ensureCardActive(Card card) {

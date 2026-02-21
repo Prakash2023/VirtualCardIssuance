@@ -4,6 +4,7 @@ import com.example.virtualCard.entity.Card;
 import com.example.virtualCard.entity.Transaction;
 import com.example.virtualCard.enums.CardStatus;
 import com.example.virtualCard.enums.TransactionStatus;
+import com.example.virtualCard.enums.TransactionType;
 import com.example.virtualCard.exception.CardNotActiveException;
 import com.example.virtualCard.exception.IdempotencyConflictException;
 import com.example.virtualCard.exception.InsufficientBalanceException;
@@ -108,7 +109,7 @@ class CardUnitTest {
         card = cardWithBalance(new BigDecimal("80"));
         Transaction existing = new Transaction(
                 card,
-                "SPEND",
+                TransactionType.SPEND,
                 BigDecimal.valueOf(20),
                 TransactionStatus.SUCCESS,
                 "k4"
@@ -132,7 +133,7 @@ class CardUnitTest {
     void idempotencyConflict() {
         Transaction existing = new Transaction(
                 card,
-                "SPEND",
+                TransactionType.SPEND,
                 BigDecimal.valueOf(20),
                 TransactionStatus.SUCCESS,
                 "k5"
@@ -170,7 +171,7 @@ class CardUnitTest {
         card = cardWithBalance(new BigDecimal("200"));
         Transaction existing = new Transaction(
                 card,
-                "ISSUANCE",
+                TransactionType.ISSUANCE,
                 BigDecimal.valueOf(200),
                 TransactionStatus.SUCCESS,
                 "c1"

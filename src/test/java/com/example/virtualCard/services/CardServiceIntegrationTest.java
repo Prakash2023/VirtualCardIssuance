@@ -3,6 +3,7 @@ package com.example.virtualCard.services;
 import com.example.virtualCard.entity.Card;
 import com.example.virtualCard.entity.Transaction;
 import com.example.virtualCard.enums.TransactionStatus;
+import com.example.virtualCard.enums.TransactionType;
 import com.example.virtualCard.exception.InsufficientBalanceException;
 import com.example.virtualCard.repository.CardRepository;
 import com.example.virtualCard.repository.TransactionRepository;
@@ -72,10 +73,10 @@ class CardServiceIntegrationTest {
         Card current = cardService.getCard(cardId);
         List<Transaction> txs = transactionRepository.findByCard_Id(cardId);
         long successTx = txs.stream()
-                .filter(tx -> "SPEND".equals(tx.getType()) && tx.getStatus() == TransactionStatus.SUCCESS)
+                .filter(tx -> tx.getType() == TransactionType.SPEND && tx.getStatus() == TransactionStatus.SUCCESS)
                 .count();
         long declinedTx = txs.stream()
-                .filter(tx -> "SPEND".equals(tx.getType()) && tx.getStatus() == TransactionStatus.DECLINED)
+                .filter(tx -> tx.getType() == TransactionType.SPEND && tx.getStatus() == TransactionStatus.DECLINED)
                 .count();
 
         assertThat(successCalls).isEqualTo(6);

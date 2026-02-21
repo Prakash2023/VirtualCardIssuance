@@ -3,6 +3,7 @@ package com.example.virtualCard.services;
 import com.example.virtualCard.entity.Card;
 import com.example.virtualCard.entity.Transaction;
 import com.example.virtualCard.enums.TransactionStatus;
+import com.example.virtualCard.enums.TransactionType;
 import com.example.virtualCard.exception.CardNotFoundException;
 import com.example.virtualCard.exception.IdempotencyConflictException;
 import com.example.virtualCard.exception.IdempotencyInProgressException;
@@ -22,10 +23,6 @@ import java.util.UUID;
 public class IdempotencyService {
     private static final Logger log = LoggerFactory.getLogger(IdempotencyService.class);
 
-    private static final String TYPE_ISSUANCE = "ISSUANCE";
-    private static final String TYPE_TOPUP = "TOPUP";
-    private static final String TYPE_SPEND = "SPEND";
-
     private final CardRepository cardRepository;
     private final TransactionRepository transactionRepository;
 
@@ -34,14 +31,14 @@ public class IdempotencyService {
         this.transactionRepository = transactionRepository;
     }
 
-    public Transaction reserveIdempotencyKey(Card card, String type, BigDecimal amount, String idempotencyKey) {
+    public Transaction reserveIdempotencyKey(Card card, TransactionType type, BigDecimal amount, String idempotencyKey) {
         try {
             Transaction pending = new Transaction(card, type, amount, TransactionStatus.PENDING, idempotencyKey);
             return transactionRepository.saveAndFlush(pending);
         } catch (DataIntegrityViolationException ex) {
             Transaction existing = transactionRepository.findByIdempotencyKey(idempotencyKey)
                     .orElseThrow(() -> ex);
-            UUID expectedCardId = TYPE_ISSUANCE.equals(type) ? null : card.getId();
+            UUID expectedCardId = TransactionType.ISSUANCE.equals(type) ? null : card.getId();
             validateIdempotentReplay(existing, expectedCardId, type, amount);
             if (existing.getStatus() == TransactionStatus.PENDING) {
                 throw new IdempotencyInProgressException();
@@ -51,7 +48,7 @@ public class IdempotencyService {
     }
 
     public Card replayCreate(Transaction existing, String expectedName, BigDecimal expectedAmount) {
-        validateIdempotentReplay(existing, null, TYPE_ISSUANCE, expectedAmount);
+        validateIdempotentReplay(existing, null, TransactionType.ISSUANCE, expectedAmount);
         if (existing.getStatus() == TransactionStatus.PENDING) {
             throw new IdempotencyInProgressException();
         }
@@ -64,7 +61,7 @@ public class IdempotencyService {
     }
 
     public Card replayTopup(Transaction existing, UUID cardId, BigDecimal amount) {
-        validateIdempotentReplay(existing, cardId, TYPE_TOPUP, amount);
+        validateIdempotentReplay(existing, cardId, TransactionType.TOPUP, amount);
         if (existing.getStatus() == TransactionStatus.PENDING) {
             throw new IdempotencyInProgressException();
         }
@@ -73,7 +70,7 @@ public class IdempotencyService {
     }
 
     public Card replaySpend(Transaction existing, UUID cardId, BigDecimal amount) {
-        validateIdempotentReplay(existing, cardId, TYPE_SPEND, amount);
+        validateIdempotentReplay(existing, cardId, TransactionType.SPEND, amount);
         if (existing.getStatus() == TransactionStatus.PENDING) {
             throw new IdempotencyInProgressException();
         }
@@ -84,7 +81,7 @@ public class IdempotencyService {
         return getCard(cardId);
     }
 
-    public void validateIdempotentReplay(Transaction existing, UUID expectedCardId, String expectedType, BigDecimal expectedAmount) {
+    public void validateIdempotentReplay(Transaction existing, UUID expectedCardId, TransactionType expectedType, BigDecimal expectedAmount) {
         if (!expectedType.equals(existing.getType())
                 || (expectedCardId != null && !Objects.equals(expectedCardId, existing.getCard().getId()))
                 || (expectedAmount != null && existing.getAmount().compareTo(expectedAmount) != 0)) {
